@@ -9,22 +9,15 @@ data Point = Point
   }
   deriving (Show)
 
-point :: Double -> Double -> Point
-point x y = Point {x = xBounded, y = yBounded}
-  where
-    xBounded = x `min` bound `max` (- bound)
-    yBounded = y `min` bound `max` (- bound)
-    bound = 5 -- TODO: this checks velocity too
-
 instance Num Point where
-  (+) (Point x1 y1) (Point x2 y2) = point (x1 + x2) (y1 + y2)
-  (-) (Point x1 y1) (Point x2 y2) = point (x1 - x2) (y1 - y2)
+  (+) (Point x1 y1) (Point x2 y2) = Point {x = x1 + x2, y = y1 + y2}
+  (-) (Point x1 y1) (Point x2 y2) = Point {x = x1 - x2, y = y1 - y2}
 
 mul :: Double -> Point -> Point
-mul scalar (Point x y) = point (scalar * x) (scalar * y)
+mul scalar (Point x y) = Point {x = scalar * x, y = scalar * y}
 
-ensureBounds :: Double -> Point -> Point
-ensureBounds bound (Point x y) = point xBounded yBounded
+ensureBounds :: Point -> Double -> Point
+ensureBounds (Point x y) bound = Point {x = xBounded, y = yBounded}
   where
     xBounded = x `min` bound `max` (- bound)
     yBounded = y `min` bound `max` (- bound)
@@ -50,8 +43,9 @@ initSwarm randoms = sixHumpCamelback finalPosition
   where
     fstList = take particleCount randoms
     sndList = take particleCount (drop particleCount randoms)
-    positions = zipWith (\x y -> point (x * 10 - 5) (y * 10 - 5)) fstList sndList
-    initParticles = map (\x -> Particle x (point 0 0) x) positions
+    positions = zipWith (\x y -> Point {x = x * 10 - 5, y = y * 10 - 5}) fstList sndList
+    initParticles = map (\x -> Particle {position = x, velocity = Point {x = 0, y = 0},
+      personalBestPosition = x}) positions
     pairs = map (\x -> (position x, sixHumpCamelback (position x))) initParticles
     curBest = fst (foldl1 (\x y -> if snd x < snd y then x else y) pairs)
     initialSwarm = Swarm {particles = initParticles, globalBestPosition = curBest}
@@ -97,7 +91,7 @@ sixHumpCamelback (Point x y) =
 
 simplePsoVelocity :: Point -> Particle -> Double -> Double -> Point
 simplePsoVelocity globalBestPosition particle rand1 rand2 =
-  ensureBounds maximumVelocity computed
+  ensureBounds computed maximumVelocity
   where
     computed = inertia + cognitiveComponent + socialComponent
     inertia = velocity particle
