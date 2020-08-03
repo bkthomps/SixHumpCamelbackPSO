@@ -21,6 +21,7 @@ source-repository head
 library
   exposed-modules:
       Lib
+      Point
   other-modules:
       Paths_SixHumpCamelbackPSO
   hs-source-dirs:
