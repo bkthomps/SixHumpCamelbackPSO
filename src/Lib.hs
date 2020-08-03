@@ -1,5 +1,6 @@
 module Lib
   ( simplePso,
+    inertiaWeightPso,
   )
 where
 
@@ -40,10 +41,14 @@ data Swarm = Swarm
   deriving (Show)
 
 simplePso :: [Double] -> (Double, Double, [Double], [Double])
-simplePso = initSwarm
+simplePso randoms = initSwarm simplePsoVelocity randoms
 
-initSwarm :: [Double] -> (Double, Double, [Double], [Double])
-initSwarm randoms =
+inertiaWeightPso :: [Double] -> (Double, Double, [Double], [Double])
+inertiaWeightPso randoms = initSwarm inertiaWeightPsoVelocity randoms
+
+initSwarm :: (Point -> Particle -> Double -> Double -> Point)
+  -> [Double] -> (Double, Double, [Double], [Double])
+initSwarm velocityPso randoms =
   (x finalPosition, y finalPosition, bestFitnessList, averageFitnessList)
   where
     fstList = take particleCount randoms
@@ -56,28 +61,30 @@ initSwarm randoms =
     initialSwarm = Swarm {particles = initParticles, globalBestPosition = curBest}
     dimensionRandoms = drop (2 * particleCount) randoms
     (finalSwarm, bestFitnessList, averageFitnessList) =
-      iterateSwarm initialSwarm dimensionRandoms iterations
+      iterateSwarm velocityPso initialSwarm dimensionRandoms iterations
     finalPosition = globalBestPosition finalSwarm
     particleCount = 200
     iterations = 250
 
-iterateSwarm :: Swarm -> [Double] -> Int -> (Swarm, [Double], [Double])
-iterateSwarm swarm _ 0 = (swarm, [], [])
-iterateSwarm swarm (rand1 : rand2 : rest) iteration =
+iterateSwarm :: (Point -> Particle -> Double -> Double -> Point)
+  -> Swarm -> [Double] -> Int -> (Swarm, [Double], [Double])
+iterateSwarm _ swarm _ 0 = (swarm, [], [])
+iterateSwarm velocityPso swarm (rand1 : rand2 : rest) iteration =
   (finalSwarm, bestFitnessList, averageFitnessList)
   where
-    (updatedSwarm, best, avg) = updateSwarm swarm rand1 rand2
-    (finalSwarm, bestList, avgList) = iterateSwarm updatedSwarm rest (iteration - 1)
+    (updatedSwarm, best, avg) = updateSwarm velocityPso swarm rand1 rand2
+    (finalSwarm, bestList, avgList) = iterateSwarm velocityPso updatedSwarm rest (iteration - 1)
     bestFitnessList = best : bestList
     averageFitnessList = avg : avgList
-iterateSwarm _ _ _ = error "Random list must be infinite"
+iterateSwarm _ _ _ _ = error "Random list must be infinite"
 
-updateSwarm :: Swarm -> Double -> Double -> (Swarm, Double, Double)
-updateSwarm (Swarm particles globalBestPosition) rand1 rand2 =
+updateSwarm :: (Point -> Particle -> Double -> Double -> Point)
+  -> Swarm -> Double -> Double -> (Swarm, Double, Double)
+updateSwarm velocityPso (Swarm particles globalBestPosition) rand1 rand2 =
   (swarm, bestFitness, averageFitness)
   where
     swarm = Swarm {particles = par, globalBestPosition = gBest}
-    par = map (\x -> updateParticle globalBestPosition x rand1 rand2) particles
+    par = map (\x -> updateParticle velocityPso globalBestPosition x rand1 rand2) particles
     gBest =
       if sixHumpCamelback curBest < sixHumpCamelback globalBestPosition
         then curBest
@@ -88,12 +95,13 @@ updateSwarm (Swarm particles globalBestPosition) rand1 rand2 =
     averageFitness = sum fitnessList / fromIntegral (length fitnessList)
     bestFitness = sixHumpCamelback gBest
 
-updateParticle :: Point -> Particle -> Double -> Double -> Particle
-updateParticle globalBestPosition particle rand1 rand2 =
+updateParticle :: (Point -> Particle -> Double -> Double -> Point)
+  -> Point -> Particle -> Double -> Double -> Particle
+updateParticle velocityPso globalBestPosition particle rand1 rand2 =
   Particle {position = pos, velocity = vel, personalBestPosition = personalBest}
   where
     pos = position particle + velocity particle
-    vel = simplePsoVelocity globalBestPosition particle rand1 rand2
+    vel = velocityPso globalBestPosition particle rand1 rand2
     personalBest =
       if sixHumpCamelback pos < sixHumpCamelback oldPersonal
         then pos
@@ -106,10 +114,20 @@ sixHumpCamelback (Point x y) =
 
 simplePsoVelocity :: Point -> Particle -> Double -> Double -> Point
 simplePsoVelocity globalBestPosition particle rand1 rand2 =
+  inertialPsoVelocity 1 globalBestPosition particle rand1 rand2
+
+inertiaWeightPsoVelocity :: Point -> Particle -> Double -> Double -> Point
+inertiaWeightPsoVelocity globalBestPosition particle rand1 rand2 =
+  inertialPsoVelocity inertialFactor globalBestPosition particle rand1 rand2
+  where
+    inertialFactor = 0.792
+
+inertialPsoVelocity :: Double -> Point -> Particle -> Double -> Double -> Point
+inertialPsoVelocity weight globalBestPosition particle rand1 rand2 =
   ensureBounds computed maximumVelocity
   where
     computed = inertia + cognitiveComponent + socialComponent
-    inertia = velocity particle
+    inertia = weight `mul` (velocity particle)
     cognitiveComponent = (cognitiveFactor * rand1) `mul` cognitiveDiff
     socialComponent = (socialFactor * rand2) `mul` socialDiff
     cognitiveDiff = personalBestPosition particle - position particle

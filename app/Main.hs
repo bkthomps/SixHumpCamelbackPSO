@@ -6,10 +6,15 @@ import System.Random (newStdGen, randomRs)
 main :: IO ()
 main = do
   list <- randomList
-  let (x, y, best, avg) = simplePso list
-  print ((show x) ++ " " ++ (show y))
-  print (show best)
-  print (show avg)
+  let (x_1, y_1, best_1, avg_1) = simplePso list
+  print ((show x_1) ++ " " ++ (show y_1))
+  print (show best_1)
+  print (show avg_1)
+  print ""
+  let (x_2, y_2, best_2, avg_2) = inertiaWeightPso list
+  print ((show x_2) ++ " " ++ (show y_2))
+  print (show best_2)
+  print (show avg_2)
 
 randomList :: IO [Double]
 randomList = randomRs (0.0, 1.0) <$> newStdGen
