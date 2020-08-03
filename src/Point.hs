@@ -4,7 +4,7 @@ data Point = Point
   { x :: Double,
     y :: Double
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
 instance Num Point where
   (+) (Point x1 y1) (Point x2 y2) = Point {x = x1 + x2, y = y1 + y2}

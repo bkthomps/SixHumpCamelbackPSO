@@ -20,6 +20,11 @@ main = do
   print ((show x_3) ++ " " ++ (show y_3))
   print (show best_3)
   print (show avg_3)
+  print ""
+  let (x_4, y_4, best_4, avg_4) = guaranteedConvergencePso list
+  print ((show x_4) ++ " " ++ (show y_4))
+  print (show best_4)
+  print (show avg_4)
 
 randomList :: IO [Double]
 randomList = randomRs (0.0, 1.0) <$> newStdGen
