@@ -12,6 +12,10 @@ data Point = Point
 instance Num Point where
   (+) (Point x1 y1) (Point x2 y2) = Point {x = x1 + x2, y = y1 + y2}
   (-) (Point x1 y1) (Point x2 y2) = Point {x = x1 - x2, y = y1 - y2}
+  (*) _ _ = undefined
+  abs _ = undefined
+  signum _ = undefined
+  fromInteger _ = undefined
 
 mul :: Double -> Point -> Point
 mul scalar (Point x y) = Point {x = scalar * x, y = scalar * y}
@@ -35,11 +39,12 @@ data Swarm = Swarm
   }
   deriving (Show)
 
-simplePso :: [Double] -> Double
+simplePso :: [Double] -> (Double, Double, [Double], [Double])
 simplePso = initSwarm
 
-initSwarm :: [Double] -> Double
-initSwarm randoms = sixHumpCamelback finalPosition
+initSwarm :: [Double] -> (Double, Double, [Double], [Double])
+initSwarm randoms =
+  (x finalPosition, y finalPosition, bestFitnessList, averageFitnessList)
   where
     fstList = take particleCount randoms
     sndList = take particleCount (drop particleCount randoms)
@@ -50,21 +55,28 @@ initSwarm randoms = sixHumpCamelback finalPosition
     curBest = fst (foldl1 (\x y -> if snd x < snd y then x else y) pairs)
     initialSwarm = Swarm {particles = initParticles, globalBestPosition = curBest}
     dimensionRandoms = drop (2 * particleCount) randoms
-    finalSwarm = iterateSwarm initialSwarm dimensionRandoms iterations
+    (finalSwarm, bestFitnessList, averageFitnessList) =
+      iterateSwarm initialSwarm dimensionRandoms iterations
     finalPosition = globalBestPosition finalSwarm
     particleCount = 200
     iterations = 250
 
-iterateSwarm :: Swarm -> [Double] -> Int -> Swarm
-iterateSwarm swarm _ 0 = swarm
+iterateSwarm :: Swarm -> [Double] -> Int -> (Swarm, [Double], [Double])
+iterateSwarm swarm _ 0 = (swarm, [], [])
 iterateSwarm swarm (rand1 : rand2 : rest) iteration =
-  iterateSwarm (updateSwarm swarm rand1 rand2) rest (iteration - 1)
+  (finalSwarm, bestFitnessList, averageFitnessList)
+  where
+    (updatedSwarm, best, avg) = updateSwarm swarm rand1 rand2
+    (finalSwarm, bestList, avgList) = iterateSwarm updatedSwarm rest (iteration - 1)
+    bestFitnessList = best : bestList
+    averageFitnessList = avg : avgList
 iterateSwarm _ _ _ = error "Random list must be infinite"
 
-updateSwarm :: Swarm -> Double -> Double -> Swarm
+updateSwarm :: Swarm -> Double -> Double -> (Swarm, Double, Double)
 updateSwarm (Swarm particles globalBestPosition) rand1 rand2 =
-  Swarm {particles = par, globalBestPosition = gBest}
+  (swarm, bestFitness, averageFitness)
   where
+    swarm = Swarm {particles = par, globalBestPosition = gBest}
     par = map (\x -> updateParticle globalBestPosition x rand1 rand2) particles
     gBest =
       if sixHumpCamelback curBest < sixHumpCamelback globalBestPosition
@@ -72,6 +84,9 @@ updateSwarm (Swarm particles globalBestPosition) rand1 rand2 =
         else globalBestPosition
     curBest = fst (foldl1 (\x y -> if snd x < snd y then x else y) pairs)
     pairs = map (\x -> (position x, sixHumpCamelback (position x))) particles
+    fitnessList = map (\x -> sixHumpCamelback (personalBestPosition x)) particles
+    averageFitness = sum fitnessList / fromIntegral (length fitnessList)
+    bestFitness = sixHumpCamelback gBest
 
 updateParticle :: Point -> Particle -> Double -> Double -> Particle
 updateParticle globalBestPosition particle rand1 rand2 =
