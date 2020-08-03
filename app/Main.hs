@@ -17,12 +17,16 @@ randomList = randomRs (0.0, 1.0) <$> newStdGen
 writePso :: String -> (Double, Double, [Double], [Double]) -> IO ()
 writePso name (x, y, best, avg) = do
   writeFile (name ++ "_solution.csv") (displayPair x y)
-  writeFile (name ++ "_best.csv") ("sep=,\n" ++ displayList best)
-  writeFile (name ++ "_average.csv") ("sep=,\n" ++ displayList avg)
+  writeFile (name ++ "_best.csv") ("sep=,\n" ++ snd (displayList best 0))
+  writeFile (name ++ "_average.csv") ("sep=,\n" ++ snd (displayList avg 0))
 
 displayPair :: Double -> Double -> String
 displayPair x y = "(" ++ show x ++ ", " ++ show y ++ ")\n"
 
-displayList :: [Double] -> String
-displayList (first : list) = show first ++ "\n" ++ displayList(list)
-displayList _ = []
+displayList :: [Double] -> Int -> (Int, String)
+displayList (first : list) len = (updatedLine, displayLine)
+  where
+    (line, rest) = displayList list (len + 1)
+    updatedLine = line - 1
+    displayLine = show line ++ "," ++ show first ++ "\n" ++ rest
+displayList len _ = ("", len - 1)
