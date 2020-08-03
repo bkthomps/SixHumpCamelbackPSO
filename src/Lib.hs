@@ -1,6 +1,7 @@
 module Lib
   ( simplePso,
     inertiaWeightPso,
+    constrictionCoefficientPso,
   )
 where
 
@@ -45,6 +46,9 @@ simplePso randoms = initSwarm simplePsoVelocity randoms
 
 inertiaWeightPso :: [Double] -> (Double, Double, [Double], [Double])
 inertiaWeightPso randoms = initSwarm inertiaWeightPsoVelocity randoms
+
+constrictionCoefficientPso :: [Double] -> (Double, Double, [Double], [Double])
+constrictionCoefficientPso randoms = initSwarm constrictionCoefficientPsoVelocity randoms
 
 initSwarm :: (Point -> Particle -> Double -> Double -> Point)
   -> [Double] -> (Double, Double, [Double], [Double])
@@ -114,24 +118,44 @@ sixHumpCamelback (Point x y) =
 
 simplePsoVelocity :: Point -> Particle -> Double -> Double -> Point
 simplePsoVelocity globalBestPosition particle rand1 rand2 =
-  inertialPsoVelocity 1 globalBestPosition particle rand1 rand2
+  inertialPsoVelocity factors globalBestPosition particle rand1 rand2
+  where
+    factors = (inertialFactor, cognitiveFactor, socialFactor)
+    inertialFactor = 1
+    cognitiveFactor = 1.4944
+    socialFactor = cognitiveFactor
 
 inertiaWeightPsoVelocity :: Point -> Particle -> Double -> Double -> Point
 inertiaWeightPsoVelocity globalBestPosition particle rand1 rand2 =
-  inertialPsoVelocity inertialFactor globalBestPosition particle rand1 rand2
+  inertialPsoVelocity factors globalBestPosition particle rand1 rand2
   where
+    factors = (inertialFactor, cognitiveFactor, socialFactor)
     inertialFactor = 0.792
+    cognitiveFactor = 1.4944
+    socialFactor = cognitiveFactor
 
-inertialPsoVelocity :: Double -> Point -> Particle -> Double -> Double -> Point
-inertialPsoVelocity weight globalBestPosition particle rand1 rand2 =
-  ensureBounds computed maximumVelocity
+constrictionCoefficientPsoVelocity :: Point -> Particle -> Double -> Double -> Point
+constrictionCoefficientPsoVelocity globalBestPosition particle rand1 rand2 =
+  inertialPsoVelocity factors globalBestPosition particle rand1 rand2
+  where
+    factors = (constrictionFactor * inertialFactor,
+      constrictionFactor * cognitiveFactor,
+      constrictionFactor * socialFactor)
+    inertialFactor = 1
+    cognitiveFactor = 2.05
+    socialFactor = cognitiveFactor
+    constrictionFactor = 2 / abs (2 - phi - sqrt (phi ** 2 - 4 * phi))
+    phi = cognitiveFactor + socialFactor
+
+inertialPsoVelocity :: (Double, Double, Double)
+  -> Point -> Particle -> Double -> Double -> Point
+inertialPsoVelocity (inertialFactor, cognitiveFactor, socialFactor)
+  globalBestPosition particle rand1 rand2 = ensureBounds computed maximumVelocity
   where
     computed = inertia + cognitiveComponent + socialComponent
-    inertia = weight `mul` (velocity particle)
+    inertia = inertialFactor `mul` (velocity particle)
     cognitiveComponent = (cognitiveFactor * rand1) `mul` cognitiveDiff
     socialComponent = (socialFactor * rand2) `mul` socialDiff
     cognitiveDiff = personalBestPosition particle - position particle
     socialDiff = globalBestPosition - position particle
-    cognitiveFactor = 1.4944
-    socialFactor = cognitiveFactor
     maximumVelocity = 5
