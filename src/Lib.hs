@@ -119,7 +119,7 @@ genericPsoUpdate (inertialFactor, cognitiveFactor, socialFactor)
     socialComponent = (socialFactor * rand2) `mul` socialDiff
     cognitiveDiff = personalBest particle - position particle
     socialDiff = (globalBest swarm) - position particle
-    maximumVelocity = 5
+    maximumVelocity = 1
 
 simplePsoUpdate :: UpdateEquations
 simplePsoUpdate swarm particle rand1 rand2 =
