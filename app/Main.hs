@@ -9,7 +9,7 @@ main = do
   writePso "1_simple_pso" (simplePso list)
   writePso "2_inertia_weight_pso" (inertiaWeightPso list)
   writePso "3_constrict_coefficient_pso" (constrictionCoefficientPso list)
-  writePso "4_guaranteed_convergence_pso" (simplePso list)
+  writePso "4_guaranteed_convergence_pso" (guaranteedConvergencePso list)
 
 randomList :: IO [Double]
 randomList = randomRs (0.0, 1.0) <$> newStdGen
